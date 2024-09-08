@@ -1,0 +1,48 @@
+name: Add New Work
+
+on:
+  repository_dispatch:
+    types: [add-work]
+
+jobs:
+  add-work:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Create new work file
+      run: |
+        echo "# ${github.event.client_payload.title}" > "works/${github.event.client_payload.title}.md"
+        echo "" >> "works/${github.event.client_payload.title}.md"
+        echo "${github.event.client_payload.category}" >> "works/${github.event.client_payload.title}.md"
+        echo "${github.event.client_payload.description}" >> "works/${github.event.client_payload.title}.md"
+        echo "${github.event.client_payload.image}" >> "works/${github.event.client_payload.title}.md"
+        echo "${github.event.client_payload.url}" >> "works/${github.event.client_payload.title}.md"
+    
+    - name: Update works.json
+      run: |
+        echo "[" > works.json
+        for file in works/*.md; do
+          title=$(head -n 1 "$file" | sed 's/^# //')
+          category=$(sed -n '3p' "$file")
+          description=$(sed -n '4p' "$file")
+          image=$(sed -n '5p' "$file")
+          url=$(sed -n '6p' "$file")
+          echo "  {" >> works.json
+          echo "    \"title\": \"$title\"," >> works.json
+          echo "    \"category\": \"$category\"," >> works.json
+          echo "    \"description\": \"$description\"," >> works.json
+          echo "    \"image\": \"$image\"," >> works.json
+          echo "    \"url\": \"$url\"" >> works.json
+          echo "  }," >> works.json
+        done
+        sed -i '$ s/,$//' works.json
+        echo "]" >> works.json
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add works/ works.json
+        git commit -m "Add new work - ${github.event.client_payload.title}"
+        git push
